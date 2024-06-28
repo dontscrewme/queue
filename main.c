@@ -50,7 +50,7 @@ void testQueue() {
   //equeue again
   assert(enqueue(q, &p) == -1);
 
-  //dequeue MAX times
+  //dequeue MAX+1 times
   for (int i = 0; i < MAX+1; i++) {
     assert(dequeue(q, &p) == 0);
     assert(p.age == i);

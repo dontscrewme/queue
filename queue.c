@@ -173,7 +173,7 @@ queue_t* resizeQueue(queue_t* me, unsigned newSize) {
   return newMe;
 }
 
-  int printQueue(queue_t *me, FILE* outfile, void(*printFunc)(const void *data, FILE *outfile)) {
+int printQueue(queue_t *me, FILE* outfile, void(*printFunc)(const void *data, FILE *outfile)) {
   if (!me || !printFunc) {
     queue_error_callback("%s: invalid input\n", __func__);
     return -1;

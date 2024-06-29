@@ -40,9 +40,9 @@ queue_t *newQueue(unsigned size, unsigned elementSize) {
 
   me->head = 0;
   me->tail = 0;
+  me->size = size;
   me->isEmpty = 1;
   me->elementSize = elementSize;
-  me->size = size;
   memset(me->data, 0, elementSize * size);
 
   return me;

@@ -1,10 +1,14 @@
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include "queue.h"
 
 struct queue_t {
   unsigned head;
   unsigned tail;
   unsigned size;
-  unsigned isEmpty;
+  unsigned numOfElements;
   unsigned elementSize;
   char data[];
 };
@@ -41,7 +45,7 @@ queue_t *newQueue(unsigned size, unsigned elementSize) {
   me->head = 0;
   me->tail = 0;
   me->size = size;
-  me->isEmpty = 1;
+  me->numOfElements = 0;
   me->elementSize = elementSize;
   memset(me->data, 0, elementSize * size);
 
@@ -62,21 +66,17 @@ int enqueue(queue_t *me, const void *item) {
     return -1;
   }
 
-  if (numOfElements(me) == me->size) {
+  if (me->numOfElements == me->size) {
     queue_error_callback("%s: queue is full\n", __func__);
     return -1;
   }
 
-  if (me->isEmpty) {
-    me->isEmpty = 0;
-  }
-  else {
-    if (++me->tail == me->size) {
-      me->tail = 0;
-    }
+  memcpy(&me->data[me->tail * me->elementSize], item, me->elementSize);
+  if (++me->tail == me->size) {
+    me->tail = 0;
   }
 
-  memcpy(&me->data[me->tail * me->elementSize], item, me->elementSize);
+  me->numOfElements++;
 
   return 0;
 }
@@ -87,21 +87,18 @@ int dequeue(queue_t *me, void *item) {
     return -1;
   }
 
-  if (me->isEmpty) {
+  if (me->numOfElements == 0) {
     queue_error_callback("%s: queue is empty\n", __func__);
     return -1;
   }
 
   memcpy(item, &me->data[me->head * me->elementSize], me->elementSize);
 
-  if (me->head == me->tail) {
-    me->isEmpty = 1;
+  if (++me->head == me->size) {
+    me->head = 0;
   }
-  else {
-    if (++me->head == me->size) {
-      me->head = 0;
-    }
-  }
+
+  me->numOfElements--;
 
   return 0;
 }
@@ -121,15 +118,7 @@ int numOfElements(queue_t *me) {
     return -1;
   }
 
-  if (me->isEmpty) {
-    return 0;
-  }
-
-  if (me->tail >= me->head) {
-    return me->tail - me->head + 1;
-  }
-
-  return me->tail - me->head + me->size + 1;
+  return me->numOfElements;
 }
 
 int numOfEmptySlots(queue_t *me) {
@@ -138,58 +127,60 @@ int numOfEmptySlots(queue_t *me) {
     return -1;
   }
 
-  return me->size - numOfElements(me);
+  return me->size - me->numOfElements;
 }
 
-queue_t* resizeQueue(queue_t* me, unsigned newSize) {
-  if (!me || newSize == 0) {
+queue_t *resizeQueue(queue_t *me, unsigned newSize) {
+  if (!me) {
     queue_error_callback("%s: invalid input\n", __func__);
     return NULL;
   }
-
-  if (numOfElements(me) >= newSize) {
+  if (me->numOfElements >= newSize) {
     queue_error_callback("%s: new size is too small\n", __func__);
-    return NULL;
+    return me;
   }
 
-  queue_t* newMe = newQueue(newSize, me->elementSize);
+  queue_t *newMe = newQueue(newSize, me->elementSize);
   if (!newMe) {
-    return NULL;
+    return me;
   }
 
   unsigned firstChunkSize = (me->size - me->head) * me->elementSize;
   memcpy(newMe->data, &me->data[me->head * me->elementSize], firstChunkSize);
 
-  if (me->tail < me->head) {
-    unsigned secondChunkSize = (me->tail + 1) * me->elementSize;
+  if (me->tail < me->head && me->tail != 0) {
+    unsigned secondChunkSize = me->tail * me->elementSize;
     memcpy(&newMe->data[firstChunkSize], me->data, secondChunkSize);
   }
 
-  newMe->tail = numOfElements(me) - 1;
-  newMe->isEmpty = me->isEmpty;
+  newMe->numOfElements = me->numOfElements;
+  newMe->tail = me->numOfElements;
 
   deleteQueue(me);
-  
+
   return newMe;
 }
 
-int printQueue(queue_t *me, FILE* outfile, void(*printFunc)(const void *data, FILE *outfile)) {
+int printQueue(queue_t *me, FILE *outfile,
+               void (*printFunc)(const void *data, FILE *outfile)) {
   if (!me || !printFunc) {
     queue_error_callback("%s: invalid input\n", __func__);
     return -1;
   }
 
-  if (me->isEmpty) {
+  if (me->numOfElements == 0) {
     return 0;
   }
-  
+
   unsigned temp_head = me->head;
-  int count = numOfElements(me);
+  int count = me->numOfElements;
   while (count) {
     printFunc(&me->data[temp_head * me->elementSize], outfile);
-    temp_head = (temp_head + 1) % me->size;
+    if (++temp_head == me->size) {
+      temp_head = 0;
+    }
     count--;
   }
 
-    return 0;
+  return 0;
 }

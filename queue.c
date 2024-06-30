@@ -54,6 +54,7 @@ queue_t *newQueue(unsigned size, unsigned elementSize) {
 
 void deleteQueue(queue_t *me) {
   if (!me) {
+    queue_error_callback("%s: invalid input\n", __func__);
     return;
   }
 
@@ -72,6 +73,7 @@ int enqueue(queue_t *me, const void *item) {
   }
 
   memcpy(&me->data[me->tail * me->elementSize], item, me->elementSize);
+
   if (++me->tail == me->size) {
     me->tail = 0;
   }
@@ -103,7 +105,7 @@ int dequeue(queue_t *me, void *item) {
   return 0;
 }
 
-int queueSize(queue_t *me) {
+int sizeOfQueue(queue_t *me) {
   if (!me) {
     queue_error_callback("%s: invalid input\n", __func__);
     return -1;
@@ -135,13 +137,14 @@ queue_t *resizeQueue(queue_t *me, unsigned newSize) {
     queue_error_callback("%s: invalid input\n", __func__);
     return NULL;
   }
-  if (me->numOfElements >= newSize) {
+  if (me->numOfElements > newSize) {
     queue_error_callback("%s: new size is too small\n", __func__);
     return me;
   }
 
   queue_t *newMe = newQueue(newSize, me->elementSize);
   if (!newMe) {
+    queue_error_callback("%s -> ", __func__);
     return me;
   }
 

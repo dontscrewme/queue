@@ -1,8 +1,8 @@
+#include "queue.h"
+#include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-
-#include "queue.h"
 
 struct queue_t {
   unsigned head;
@@ -38,7 +38,7 @@ queue_t *newQueue(unsigned size, unsigned elementSize) {
 
   queue_t *me = malloc(sizeof(queue_t) + (size * elementSize));
   if (!me) {
-    queue_error_callback("%s: malloc failed\n", __func__);
+    queue_error_callback("%s: malloc() failed\n", __func__);
     return NULL;
   }
 
@@ -105,55 +105,70 @@ int dequeue(queue_t *me, void *item) {
   return 0;
 }
 
-int sizeOfQueue(queue_t *me) {
+int getSize(queue_t *me, unsigned int *output) {
+  if (!me || !output) {
+    queue_error_callback("%s: invalid input\n", __func__);
+    return -1;
+  }
+
+  *output = me->size;
+
+  return 0;
+}
+
+int getNumOfElements(queue_t *me, unsigned int *output) {
+  if (!me || !output) {
+    queue_error_callback("%s: invalid input\n", __func__);
+    return -1;
+  }
+
+  *output = me->numOfElements;
+
+  return 0;
+}
+
+int getNumOfEmptySlots(queue_t *me, unsigned int *output) {
+  if (!me || !output) {
+    queue_error_callback("%s: invalid input\n", __func__);
+    return -1;
+  }
+
+  *output = me->size - me->numOfElements;
+
+  return 0;
+}
+
+int resizeQueue(queue_t *me, unsigned newSize, queue_t** output) {
   if (!me) {
     queue_error_callback("%s: invalid input\n", __func__);
     return -1;
   }
 
-  return me->size;
-}
-
-int numOfElements(queue_t *me) {
-  if (!me) {
-    queue_error_callback("%s: invalid input\n", __func__);
-    return -1;
-  }
-
-  return me->numOfElements;
-}
-
-int numOfEmptySlots(queue_t *me) {
-  if (!me) {
-    queue_error_callback("%s: invalid input\n", __func__);
-    return -1;
-  }
-
-  return me->size - me->numOfElements;
-}
-
-queue_t *resizeQueue(queue_t *me, unsigned newSize) {
-  if (!me) {
-    queue_error_callback("%s: invalid input\n", __func__);
-    return NULL;
-  }
-  if (me->numOfElements > newSize) {
+  if (me->size >= newSize) {
     queue_error_callback("%s: new size is too small\n", __func__);
-    return me;
+    return -1;
   }
 
   queue_t *newMe = newQueue(newSize, me->elementSize);
   if (!newMe) {
-    queue_error_callback("%s -> ", __func__);
-    return me;
+    queue_error_callback("%s: newQueue() failed\n ", __func__);
+    return -1;
   }
 
   unsigned firstChunkSize = (me->size - me->head) * me->elementSize;
-  memcpy(newMe->data, &me->data[me->head * me->elementSize], firstChunkSize);
+  if (memcpy(newMe->data, &me->data[me->head * me->elementSize], firstChunkSize) == NULL) {
+    queue_error_callback("%s: memcpy failed\n", __func__);
+    deleteQueue(newMe);
+    return -1;
+  }
 
   if (me->tail < me->head && me->tail != 0) {
     unsigned secondChunkSize = me->tail * me->elementSize;
-    memcpy(&newMe->data[firstChunkSize], me->data, secondChunkSize);
+    if (memcpy(&newMe->data[firstChunkSize], me->data, secondChunkSize) == NULL) {
+      queue_error_callback("%s: memcpy failed\n", __func__);
+      deleteQueue(newMe);
+      return -1;
+    }
   }
 
   newMe->numOfElements = me->numOfElements;
@@ -161,7 +176,9 @@ queue_t *resizeQueue(queue_t *me, unsigned newSize) {
 
   deleteQueue(me);
 
-  return newMe;
+  *output = newMe;
+
+  return 0;
 }
 
 int printQueue(queue_t *me, FILE *outfile,
@@ -178,12 +195,14 @@ int printQueue(queue_t *me, FILE *outfile,
   unsigned temp_head = me->head;
   int count = me->numOfElements;
   while (count) {
+    fprintf(outfile, "(%d)", temp_head);
     printFunc(&me->data[temp_head * me->elementSize], outfile);
     if (++temp_head == me->size) {
       temp_head = 0;
     }
     count--;
   }
+  fprintf(outfile, "\n");
 
   return 0;
 }
